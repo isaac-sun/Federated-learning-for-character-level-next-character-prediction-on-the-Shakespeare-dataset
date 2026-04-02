@@ -1,0 +1,18 @@
+# ==================================================
+# Federated Shakespeare - Dependencies
+# 联邦莎士比亚 - 依赖项
+# ==================================================
+# Core deep learning framework / 核心深度学习框架
+torch>=2.0.0
+
+# Federated learning framework / 联邦学习框架
+flwr>=1.6.0
+
+# Numerical computing / 数值计算
+numpy>=1.24.0
+
+# Plotting and visualization / 绘图和可视化
+matplotlib>=3.7.0
+
+# HTTP downloads / HTTP下载
+requests>=2.28.0

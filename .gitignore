@@ -1,0 +1,42 @@
+# ==================================================
+# .gitignore - Federated Shakespeare Project
+# ==================================================
+
+# Python bytecode / Python字节码
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments / 虚拟环境
+.venv/
+venv/
+env/
+ENV/
+
+# IDE and editor files / IDE和编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files / 操作系统文件
+.DS_Store
+Thumbs.db
+
+# Project outputs / 项目输出
+results/
+logs/
+checkpoints/
+
+# Downloaded data cache / 下载的数据缓存
+data/raw/
+
+# Distribution / 分发
+dist/
+build/
+*.egg-info/
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
