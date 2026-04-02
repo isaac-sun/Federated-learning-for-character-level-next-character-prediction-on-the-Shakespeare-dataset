@@ -176,8 +176,14 @@ def run_experiment(
         print(f"  eta_server:                        {eta_server}")
     print("=" * 70)
 
+    import time as _time
+    round_times: list[float] = []  # track elapsed time per round / 记录每轮耗时
+
     for round_num in range(1, num_rounds + 1):
+        round_start = _time.time()
         round_log: Dict[str, Any] = {"round": round_num}
+
+        print(f"\n  ── Round {round_num}/{num_rounds} ", "─" * 45)
 
         # ==== Step 1: Client sampling with reputation filtering ====
         # ==== 步骤1：基于信誉过滤的客户端采样 ====
@@ -201,7 +207,12 @@ def run_experiment(
         updates: Dict[str, List[np.ndarray]] = {}
         sample_counts: Dict[str, int] = {}
 
-        for cid in selected_ids:
+        n_honest = sum(1 for c in selected_ids if attack_assignment.get(c, HONEST) in (HONEST, SF))
+        n_attack = len(selected_ids) - n_honest + sum(1 for c in selected_ids if attack_assignment.get(c, HONEST) == SF)
+        print(f"     📡 Training {len(selected_ids)} clients...", end="", flush=True)
+        train_t0 = _time.time()
+
+        for idx, cid in enumerate(selected_ids):
             atk = attack_assignment.get(cid, HONEST)
 
             if atk == HONEST or atk == SF:
@@ -262,6 +273,9 @@ def run_experiment(
                 if cid not in sample_counts:
                     sample_counts[cid] = 1
 
+        train_elapsed = _time.time() - train_t0
+        print(f" done ({train_elapsed:.1f}s)")
+
         # Compute updates: g_i = w_g - w_i
         # 计算更新：g_i = w_g - w_i
         for cid in selected_ids:
@@ -276,6 +290,7 @@ def run_experiment(
             # ---- SVRFL defense pipeline / SVRFL防御流程 ----
 
             # A. Shapley value estimation / Shapley值估计
+            sv_t0 = _time.time()
             sv = estimate_shapley_monte_carlo(
                 global_params=global_params,
                 updates=updates,
@@ -287,6 +302,9 @@ def run_experiment(
                 num_samples=shapley_mc_samples,
                 seed=seed + round_num * 1000,
             )
+            sv_elapsed = _time.time() - sv_t0
+            print(f"\r     🎲 Shapley estimation (R={shapley_mc_samples}, k={k})... "
+                  f"done ({sv_elapsed:.1f}s)      ")
             round_log["shapley_values"] = {
                 cid: float(v) for cid, v in sv.items()
             }
@@ -394,15 +412,26 @@ def run_experiment(
         round_logs.append(round_log)
 
         # Print round summary / 打印轮次总结
+        round_elapsed = _time.time() - round_start
+        round_times.append(round_elapsed)
+        avg_round = sum(round_times) / len(round_times)
+        remaining = avg_round * (num_rounds - round_num)
+        remaining_str = f"{int(remaining//60)}m{int(remaining%60):02d}s"
+
         fr_str = ""
         if use_svrfl and detected_fr:
-            fr_str = f" │ FR detected: {sorted(detected_fr)}"
+            fr_str = f" │ FR: {sorted(detected_fr)}"
+        agg_str = ""
+        if use_svrfl:
+            n_agg = len(round_log.get("aggregated_ids", selected_ids))
+            agg_str = f" │ Agg: {n_agg}/{k}"
         print(
-            f"  Round {round_num:3d}/{num_rounds} │ "
-            f"Loss: {val_loss:.4f} │ "
+            f"     ✅ Loss: {val_loss:.4f} │ "
             f"PPL: {perplexity:8.2f} │ "
-            f"Acc: {accuracy:.4f}"
-            f"{fr_str}"
+            f"Acc: {accuracy:.4f} │ "
+            f"{round_elapsed:.0f}s │ "
+            f"ETA: {remaining_str}"
+            f"{agg_str}{fr_str}"
         )
 
     print("=" * 70)

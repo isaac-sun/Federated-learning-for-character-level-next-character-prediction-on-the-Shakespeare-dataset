@@ -135,8 +135,8 @@ def parse_args() -> argparse.Namespace:
     # ---- Training ----
     train_group = parser.add_argument_group("Training / 训练")
     train_group.add_argument(
-        "--batch-size", type=int, default=16,
-        help="Batch size (default: 16). 批次大小。",
+        "--batch-size", type=int, default=64,
+        help="Batch size (default: 64). 批次大小。",
     )
     train_group.add_argument(
         "--lr", type=float, default=0.001,

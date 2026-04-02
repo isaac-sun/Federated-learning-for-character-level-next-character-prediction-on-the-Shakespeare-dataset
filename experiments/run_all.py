@@ -130,9 +130,11 @@ def run_single_experiment(
     )
 
     start = time.time()
+    # Stream output in real-time instead of buffering
+    # 实时输出而非缓冲，避免长时间无显示
     result = subprocess.run(
         cmd, cwd=PROJECT_ROOT,
-        capture_output=True, text=True,
+        stdout=None, stderr=None,  # inherit parent's stdout/stderr
     )
     elapsed = time.time() - start
 
@@ -157,7 +159,7 @@ def run_single_experiment(
         "elapsed": elapsed,
         "output_dir": output_dir,
         **metrics,
-        "stderr": result.stderr[-500:] if not success else "",
+        "stderr": "",
     }
 
 
@@ -265,8 +267,8 @@ def main():
         acc_str = f", Acc={r['final_accuracy']:.4f}" if r.get("final_accuracy") else ""
         print(f"  {status} ({t}{acc_str})")
 
-        if not r["success"] and r["stderr"]:
-            print(f"  Error: {r['stderr'][:200]}")
+        if not r["success"]:
+            print(f"  Check logs in {r['output_dir']}")
 
     total_time = time.time() - total_start
 

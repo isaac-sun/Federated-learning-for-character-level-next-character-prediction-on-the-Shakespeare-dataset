@@ -148,6 +148,11 @@ def estimate_shapley_monte_carlo(
     global_loss = evaluate_model_loss(model, global_params, val_loader, device)
 
     for sample_idx in range(num_samples):
+        # Progress indicator every 10 permutations
+        # 每10个排列显示进度
+        if sample_idx % 10 == 0:
+            print(f"\r     🎲 Shapley estimation (R={num_samples}, k={k})... "
+                  f"{sample_idx}/{num_samples}", end="", flush=True)
         perm = list(selected_ids)
         rng.shuffle(perm)
 
