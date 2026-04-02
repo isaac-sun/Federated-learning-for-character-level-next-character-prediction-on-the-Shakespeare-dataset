@@ -218,17 +218,43 @@ At startup, FedBard prints a device info block:
 
 ## Quick Start
 
-### FedAvg Baseline
+### ▶ Recommended: One-Click Full Experiment Suite
+
+Run all 12 experiment combinations (both defenses × all attacks) with a single command:
 
 ```bash
 cd federated_shakespeare
 
-python experiments/train.py                                    # 25 rounds, 5 clients/round
-python experiments/train.py --num-rounds 50 --clients-per-round 10
-python experiments/train.py --device cuda --num-rounds 50     # force CUDA
+# Full suite — saves all results + summary.csv (~6–12 hours on GPU)
+python experiments/run_all.py
+
+# Quick smoke test — reduced rounds, ideal for verifying your setup
+python experiments/run_all.py --quick
+
+# Run on a specific device
+python experiments/run_all.py --device cuda        # NVIDIA GPU
+python experiments/run_all.py --device mps         # Apple Silicon
+python experiments/run_all.py --device cpu         # CPU only
+
+# Run only a subset of attacks
+python experiments/run_all.py --attacks dfr sf concurrent
 ```
 
-### SVRFL Defense Experiments
+Results land in `results/` with a `summary.csv` comparing all configurations side-by-side.
+
+---
+
+### Individual Experiments
+
+#### FedAvg Baseline
+
+```bash
+python experiments/train.py                                    # 25 rounds, 5 clients/round
+python experiments/train.py --num-rounds 50 --clients-per-round 10
+python experiments/train.py --device cuda --num-rounds 50
+```
+
+#### SVRFL Defense Experiments
 
 ```bash
 # No attack baseline
@@ -246,19 +272,6 @@ python experiments/train_svrfl.py --defense svrfl --attack concurrent
 # FedAvg under attack (no defense — for ablation comparison)
 python experiments/train_svrfl.py --defense fedavg --attack sf
 ```
-
-### One-Click Full Suite
-
-Run all 12 experiment combinations (both defenses × all attacks) and generate a summary CSV:
-
-```bash
-python experiments/run_all.py                        # full suite (~6–12 hours on GPU)
-python experiments/run_all.py --quick                # reduced rounds for testing
-python experiments/run_all.py --attacks dfr sf       # run subset of attacks only
-python experiments/run_all.py --device cuda          # specify device
-```
-
-Results are saved under `results/` with a `summary.csv` comparing all configurations.
 
 ---
 

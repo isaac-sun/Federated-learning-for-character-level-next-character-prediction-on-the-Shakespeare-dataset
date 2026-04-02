@@ -218,17 +218,43 @@ python experiments/train_svrfl.py --defense svrfl --attack dfr
 
 ## 快速开始
 
-### FedAvg 基线
+### ▶ 推荐：一键运行全部实验
+
+一条命令运行全部 12 种实验组合（两种防御 × 全部攻击）：
 
 ```bash
 cd federated_shakespeare
 
-python experiments/train.py                                    # 25 轮，每轮 5 个客户端
-python experiments/train.py --num-rounds 50 --clients-per-round 10
-python experiments/train.py --device cuda --num-rounds 50     # 指定 CUDA
+# 完整套件——保存所有结果 + summary.csv（GPU 约需 6–12 小时）
+python experiments/run_all.py
+
+# 快速冒烟测试——减少轮次，适合验证环境配置
+python experiments/run_all.py --quick
+
+# 指定运行设备
+python experiments/run_all.py --device cuda        # NVIDIA GPU
+python experiments/run_all.py --device mps         # Apple Silicon
+python experiments/run_all.py --device cpu         # 仅 CPU
+
+# 只运行部分攻击
+python experiments/run_all.py --attacks dfr sf concurrent
 ```
 
-### SVRFL 防御实验
+结果保存在 `results/` 目录下，包含对比所有配置的 `summary.csv`。
+
+---
+
+### 单独运行实验
+
+#### FedAvg 基线
+
+```bash
+python experiments/train.py                                    # 25 轮，每轮 5 个客户端
+python experiments/train.py --num-rounds 50 --clients-per-round 10
+python experiments/train.py --device cuda --num-rounds 50
+```
+
+#### SVRFL 防御实验
 
 ```bash
 # 无攻击基线
@@ -246,19 +272,6 @@ python experiments/train_svrfl.py --defense svrfl --attack concurrent
 # 无防御的 FedAvg 受攻击（消融对比）
 python experiments/train_svrfl.py --defense fedavg --attack sf
 ```
-
-### 一键运行全部实验
-
-运行全部 12 种实验组合（两种防御 × 全部攻击），并生成汇总 CSV：
-
-```bash
-python experiments/run_all.py                        # 完整套件（GPU 约需 6–12 小时）
-python experiments/run_all.py --quick                # 减少轮次，用于快速验证
-python experiments/run_all.py --attacks dfr sf       # 仅运行指定攻击
-python experiments/run_all.py --device cuda          # 指定设备
-```
-
-结果保存在 `results/` 目录下，包含对比所有配置的 `summary.csv`。
 
 ---
 
