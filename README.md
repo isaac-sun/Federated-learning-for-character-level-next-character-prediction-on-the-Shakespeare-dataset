@@ -437,8 +437,9 @@ Experiment runtimes depend heavily on hardware. Approximate benchmarks for a **s
 
 ## References
 
-- McMahan et al., *Communication-Efficient Learning of Deep Networks from Decentralized Data*, AISTATS 2017. [[arXiv]](https://arxiv.org/abs/1602.05629)
-- *Robust and Fair Federated Learning Based on Model-Agnostic Shapley Value*
+- McMahan, H. B., Moore, E., Ramage, D., Hampson, S., & Agüera y Arcas, B. (2017). *Communication-Efficient Learning of Deep Networks from Decentralized Data*. AISTATS 2017. [[arXiv:1602.05629]](https://arxiv.org/abs/1602.05629)
+
+- Jin, R., Hu, J., & Min, G. (2026). *Robust and Fair Federated Learning Based on Model-Agnostic Shapley Value*. IEEE Transactions on Networking. DOI: [10.1109/TON.2025.3630314](https://doi.org/10.1109/TON.2025.3630314) [[IEEE Xplore]](https://ieeexplore.ieee.org/document/11314177)
 
 ---
 
