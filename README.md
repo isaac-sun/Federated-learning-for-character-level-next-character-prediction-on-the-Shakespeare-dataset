@@ -11,7 +11,7 @@ Built with PyTorch · Flower · FedAvg
 [![Flower](https://img.shields.io/badge/Flower-1.6%2B-green.svg)](https://flower.ai/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[English](#overview) · [中文](#概述)
+[中文文档](README_CN.md)
 
 </div>
 
@@ -161,44 +161,6 @@ After training completes, `results/` contains:
 | **Perplexity** | $e^{\text{loss}}$ | Lower = better; measures model "surprise" |
 | **Accuracy** | $\frac{\text{correct predictions}}{\text{total predictions}}$ | Character-level next-char accuracy |
 
----
-
-## 概述
-
-本项目实现了一个完整的**联邦学习**流水线，用于莎士比亚戏剧的**字符级下一字符预测**。每个莎士比亚角色（如 ROMEO、JULIET、HAMLET）作为独立的联邦客户端，在自己的对话文本上训练本地 LSTM 模型，服务器通过**联邦平均（FedAvg）**聚合更新。
-
-### 功能特性
-
-- 🔁 **FedAvg** — 跨 500+ 客户端的模型参数加权聚合
-- 🧠 **CharLSTM** — 多层 LSTM + 字符嵌入
-- 📦 **自动数据集** — 自动下载 TinyShakespeare 并按角色解析，带合成数据回退
-- 🌸 **Flower 兼容** — 实现 `NumPyClient` 接口
-- 📈 **度量与图表** — 自动生成损失、困惑度、准确率曲线
-- ⚙️ **完全可配置** — 所有超参数均可通过命令行调整
-- 💾 **模型保存** — 保存包含完整元数据的全局模型
-
-### 快速开始
-
-```bash
-cd federated_shakespeare
-pip install -r requirements.txt
-python experiments/train.py                         # 默认配置
-python experiments/train.py --num-rounds 50         # 自定义轮次
-python experiments/train.py --help                  # 查看所有参数
-```
-
-### 评估度量
-
-| 度量 | 公式 | 说明 |
-|:---|:---|:---|
-| **交叉熵损失** | $-\frac{1}{N}\sum \log p(c_t)$ | 标准分类损失 |
-| **困惑度** | $e^{\text{loss}}$ | 越低越好，衡量模型"惊讶程度" |
-| **准确率** | 正确预测数 / 总预测数 | 字符级下一字符准确率 |
-
----
-
 ## License
 
 This project is released under the [MIT License](LICENSE).
-
-本项目基于 [MIT 许可证](LICENSE) 发布。
