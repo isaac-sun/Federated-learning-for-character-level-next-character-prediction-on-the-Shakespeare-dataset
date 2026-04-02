@@ -79,7 +79,10 @@ def parse_args():
     )
     parser.add_argument(
         "--device", type=str, default="auto",
-        help="Compute device (default: auto). 计算设备。",
+        help=(
+            "Compute device: auto / cpu / cuda / cuda:N / mps  (default: auto). "
+            "计算设备（默认：auto 自动选择）。"
+        ),
     )
     parser.add_argument(
         "--seed", type=int, default=42,

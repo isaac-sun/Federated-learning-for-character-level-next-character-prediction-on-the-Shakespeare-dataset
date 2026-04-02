@@ -37,6 +37,7 @@ from federated.client import ShakespeareClient
 from federated.server import set_model_parameters
 from federated.svrfl_server import run_experiment, compute_freerider_metrics
 from utils.metrics import MetricsLogger, plot_metrics, plot_svrfl_metrics
+from utils.device import get_device, print_device_info
 from attacks import HONEST, DFR, SDFR, AFR, SF
 
 
@@ -170,7 +171,15 @@ def parse_args() -> argparse.Namespace:
     )
     misc_group.add_argument(
         "--device", type=str, default="auto",
-        help="Compute device: auto/cpu/cuda/mps. 计算设备。",
+        help=(
+            "Compute device: auto / cpu / cuda / cuda:N / mps  (default: auto)\n"
+            "  auto   – 自动选择（CUDA → MPS → CPU）\n"
+            "  cuda   – NVIDIA GPU（等同于 cuda:0）\n"
+            "  cuda:N – 指定第 N 块 NVIDIA GPU（如 cuda:0、cuda:1）\n"
+            "  mps    – Apple Silicon GPU（仅 macOS）\n"
+            "  cpu    – 仅使用 CPU\n"
+            "计算设备（默认：auto 自动选择）。"
+        ),
     )
     misc_group.add_argument(
         "--log-level", type=str, default="INFO",
@@ -179,20 +188,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     return parser.parse_args()
-
-
-def get_device(device_str: str) -> torch.device:
-    """
-    Resolve compute device. 解析计算设备。
-    """
-    if device_str == "auto":
-        if torch.cuda.is_available():
-            return torch.device("cuda")
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            return torch.device("mps")
-        else:
-            return torch.device("cpu")
-    return torch.device(device_str)
 
 
 def build_attack_assignment(
@@ -276,6 +271,7 @@ def main():
 
     device = get_device(args.device)
     log.info(f"Using device: {device}")
+    print_device_info(device)
 
     # Auto-generate output directory / 自动生成输出目录
     if args.output_dir is None:

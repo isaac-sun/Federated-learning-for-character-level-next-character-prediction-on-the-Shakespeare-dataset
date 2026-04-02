@@ -42,6 +42,7 @@ from models.lstm_model import CharLSTM
 from federated.client import ShakespeareClient
 from federated.server import run_federated_simulation, set_model_parameters
 from utils.metrics import MetricsLogger, plot_metrics
+from utils.device import get_device, print_device_info
 
 
 def parse_args() -> argparse.Namespace:
@@ -154,8 +155,15 @@ def parse_args() -> argparse.Namespace:
     )
     misc_group.add_argument(
         "--device", type=str, default="auto",
-        help="Compute device: auto/cpu/cuda/mps (default: auto). "
-             "计算设备：auto/cpu/cuda/mps（默认：auto）。",
+        help=(
+            "Compute device: auto / cpu / cuda / cuda:N / mps  (default: auto)\n"
+            "  auto   – 自动选择（CUDA → MPS → CPU）\n"
+            "  cuda   – NVIDIA GPU（等同于 cuda:0）\n"
+            "  cuda:N – 指定第 N 块 NVIDIA GPU（如 cuda:0、cuda:1）\n"
+            "  mps    – Apple Silicon GPU（仅 macOS）\n"
+            "  cpu    – 仅使用 CPU\n"
+            "计算设备（默认：auto 自动选择）。"
+        ),
     )
     misc_group.add_argument(
         "--log-level", type=str, default="INFO",
@@ -164,28 +172,6 @@ def parse_args() -> argparse.Namespace:
     )
 
     return parser.parse_args()
-
-
-def get_device(device_str: str) -> torch.device:
-    """
-    Resolve the compute device string to a torch.device.
-    将计算设备字符串解析为torch.device。
-
-    Args:
-        device_str: One of "auto", "cpu", "cuda", "mps".
-                    "auto"、"cpu"、"cuda"、"mps"之一。
-
-    Returns:
-        Resolved torch.device. 解析后的torch.device。
-    """
-    if device_str == "auto":
-        if torch.cuda.is_available():
-            return torch.device("cuda")
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            return torch.device("mps")
-        else:
-            return torch.device("cpu")
-    return torch.device(device_str)
 
 
 def main():
@@ -209,6 +195,7 @@ def main():
 
     device = get_device(args.device)
     logger.info(f"Using device: {device}")
+    print_device_info(device)
 
     output_dir = os.path.join(PROJECT_ROOT, args.output_dir)
     os.makedirs(output_dir, exist_ok=True)
