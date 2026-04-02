@@ -394,3 +394,67 @@ def get_client_datasets(
 
     logger.info(f"Created datasets for {len(client_datasets)} clients")
     return client_datasets, vocab
+
+
+def build_server_validation_set(
+    client_datasets: Dict[str, Dict[str, "ShakespeareDataset"]],
+    num_samples: int = 1000,
+    seed: int = 42,
+) -> "ShakespeareDataset":
+    """
+    Build a server-side validation dataset by sampling from client test data.
+    通过从客户端测试数据中采样构建服务器端验证数据集。
+
+    For SVRFL, the server needs a small validation set D_v to estimate
+    coalition model quality during Shapley value computation. This samples
+    uniformly from all clients' test data.
+    对于SVRFL，服务器需要一个小的验证集D_v来估计
+    Shapley值计算期间的联盟模型质量。
+
+    Args:
+        client_datasets: Dict mapping cid → {"train": ..., "test": ...}.
+                         客户端数据集映射。
+        num_samples: Number of validation examples to sample (default 1000).
+                     要采样的验证样本数（默认1000）。
+        seed: Random seed for reproducibility. 随机种子。
+
+    Returns:
+        ShakespeareDataset containing sampled validation examples.
+        包含采样验证样本的ShakespeareDataset。
+    """
+    rng = random.Random(seed)
+
+    # Collect all test data from all clients / 收集所有客户端的测试数据
+    all_inputs = []
+    all_targets = []
+    for cid, datasets in client_datasets.items():
+        test_ds = datasets.get("test")
+        if test_ds is None or len(test_ds) == 0:
+            continue
+        # Access underlying tensors / 访问底层张量
+        all_inputs.append(test_ds.inputs.numpy())
+        all_targets.append(test_ds.targets.numpy())
+
+    if not all_inputs:
+        logger.warning("No test data available for validation set.")
+        return ShakespeareDataset(np.zeros((0, 50), dtype=np.int64),
+                                  np.zeros((0, 50), dtype=np.int64))
+
+    combined_inputs = np.concatenate(all_inputs, axis=0)
+    combined_targets = np.concatenate(all_targets, axis=0)
+
+    total = len(combined_inputs)
+    k = min(num_samples, total)
+
+    indices = list(range(total))
+    rng.shuffle(indices)
+    selected = sorted(indices[:k])
+
+    logger.info(
+        f"Built server validation set: {k} samples from {total} total "
+        f"across {len(all_inputs)} clients"
+    )
+
+    return ShakespeareDataset(
+        combined_inputs[selected], combined_targets[selected]
+    )

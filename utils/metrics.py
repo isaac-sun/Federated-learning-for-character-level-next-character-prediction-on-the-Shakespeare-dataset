@@ -323,3 +323,154 @@ def plot_metrics(
     if show:
         plt.show()
     plt.close(fig)
+
+
+def plot_svrfl_metrics(
+    round_logs: List[Dict],
+    save_dir: str = "results",
+    malicious_ids: Optional[set] = None,
+    detection_metrics: Optional[Dict[str, List[float]]] = None,
+    show: bool = False,
+) -> None:
+    """
+    Plot SVRFL-specific metrics: reputations, detection stats, utilities.
+    绘制SVRFL特有的度量：信誉、检测统计、效用。
+
+    Generates:
+      1. Reputation trajectories (benign vs malicious)
+      2. Detection precision and FRDR
+      3. Utility score trajectories
+
+    生成：
+      1. 信誉轨迹（良性 vs 恶意）
+      2. 检测精度和FRDR
+      3. 效用分数轨迹
+
+    Args:
+        round_logs: Per-round detail dicts from svrfl_server. 每轮详细日志。
+        save_dir: Output directory. 输出目录。
+        malicious_ids: Set of malicious client IDs. 恶意客户端ID集合。
+        detection_metrics: Dict with "round", "precision", "frdr". 检测度量。
+        show: Whether to show plots interactively. 是否交互式显示。
+    """
+    os.makedirs(save_dir, exist_ok=True)
+    if malicious_ids is None:
+        malicious_ids = set()
+
+    rounds_list = [log["round"] for log in round_logs]
+
+    # ---- Plot 1: Reputation trajectories / 信誉轨迹 ----
+    if round_logs and "reputations" in round_logs[0]:
+        all_cids = sorted(round_logs[0]["reputations"].keys())
+        benign_cids = [c for c in all_cids if c not in malicious_ids]
+        malicious_cids = [c for c in all_cids if c in malicious_ids]
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Plot benign clients in blue / 良性客户端蓝色
+        for cid in benign_cids:
+            vals = [log["reputations"].get(cid, 0.0) for log in round_logs]
+            ax.plot(rounds_list, vals, "b-", alpha=0.3, linewidth=0.8)
+
+        # Plot malicious clients in red / 恶意客户端红色
+        for cid in malicious_cids:
+            vals = [log["reputations"].get(cid, 0.0) for log in round_logs]
+            ax.plot(rounds_list, vals, "r-", alpha=0.6, linewidth=1.2)
+
+        # Legend proxy / 图例代理
+        import matplotlib.lines as mlines
+        b_line = mlines.Line2D([], [], color="blue", alpha=0.5, label="Benign")
+        m_line = mlines.Line2D([], [], color="red", alpha=0.7, label="Malicious")
+        ax.legend(handles=[b_line, m_line])
+        ax.set_xlabel("Round")
+        ax.set_ylabel("Reputation")
+        ax.set_title("Client Reputation Over Rounds")
+        ax.axhline(y=0, color="gray", linestyle="--", alpha=0.5)
+        ax.grid(True, alpha=0.3)
+        fig.tight_layout()
+        path = os.path.join(save_dir, "reputation_trajectories.png")
+        fig.savefig(path, dpi=150)
+        print(f"  Reputation plot saved to {path}")
+        if show:
+            plt.show()
+        plt.close(fig)
+
+    # ---- Plot 2: Detection precision & FRDR / 检测精度和FRDR ----
+    if detection_metrics and detection_metrics.get("round"):
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(
+            detection_metrics["round"],
+            detection_metrics["precision"],
+            "g-o", markersize=3, label="Precision",
+        )
+        ax.plot(
+            detection_metrics["round"],
+            detection_metrics["frdr"],
+            "m-s", markersize=3, label="FRDR",
+        )
+        ax.set_xlabel("Round")
+        ax.set_ylabel("Score")
+        ax.set_title("Free-Rider Detection Performance")
+        ax.set_ylim(-0.05, 1.05)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        fig.tight_layout()
+        path = os.path.join(save_dir, "freerider_detection.png")
+        fig.savefig(path, dpi=150)
+        print(f"  Detection plot saved to {path}")
+        if show:
+            plt.show()
+        plt.close(fig)
+
+    # ---- Plot 3: Utility score trajectories / 效用分数轨迹 ----
+    if round_logs and any("utility_scores" in log for log in round_logs):
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Collect all client IDs that appear in utility_scores
+        util_cids = set()
+        for log in round_logs:
+            util_cids.update(log.get("utility_scores", {}).keys())
+
+        benign_u = [c for c in sorted(util_cids) if c not in malicious_ids]
+        malicious_u = [c for c in sorted(util_cids) if c in malicious_ids]
+
+        rounds_with_u = [
+            log["round"] for log in round_logs if "utility_scores" in log
+        ]
+
+        for cid in benign_u:
+            vals = [
+                log.get("utility_scores", {}).get(cid, 0.0)
+                for log in round_logs
+                if "utility_scores" in log
+            ]
+            if vals:
+                ax.plot(rounds_with_u[:len(vals)], vals, "b-",
+                        alpha=0.3, linewidth=0.8)
+
+        for cid in malicious_u:
+            vals = [
+                log.get("utility_scores", {}).get(cid, 0.0)
+                for log in round_logs
+                if "utility_scores" in log
+            ]
+            if vals:
+                ax.plot(rounds_with_u[:len(vals)], vals, "r-",
+                        alpha=0.6, linewidth=1.2)
+
+        import matplotlib.lines as mlines
+        b_line = mlines.Line2D([], [], color="blue", alpha=0.5, label="Benign")
+        m_line = mlines.Line2D([], [], color="red", alpha=0.7, label="Malicious")
+        ax.legend(handles=[b_line, m_line])
+        ax.set_xlabel("Round")
+        ax.set_ylabel("Utility Score")
+        ax.set_title("Client Utility Scores Over Rounds")
+        ax.axhline(y=0, color="gray", linestyle="--", alpha=0.5)
+        ax.grid(True, alpha=0.3)
+        fig.tight_layout()
+        path = os.path.join(save_dir, "utility_trajectories.png")
+        fig.savefig(path, dpi=150)
+        print(f"  Utility plot saved to {path}")
+        if show:
+            plt.show()
+        plt.close(fig)
