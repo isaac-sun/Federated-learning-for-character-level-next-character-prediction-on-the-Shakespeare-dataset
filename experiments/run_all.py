@@ -57,15 +57,14 @@ FULL_MATRIX = [
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Run all FedBard experiments / 运行所有 FedBard 实验",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+
+    # ---- Experiment filtering / 实验筛选 ----
     parser.add_argument(
         "--quick", action="store_true",
         help="Quick mode: 5 rounds, 10 MC samples (for testing). "
              "快速模式：5轮，10次MC采样（用于测试）。",
-    )
-    parser.add_argument(
-        "--num-rounds", type=int, default=None,
-        help="Override number of rounds. 覆盖轮数。",
     )
     parser.add_argument(
         "--attacks", nargs="+", default=None,
@@ -77,6 +76,66 @@ def parse_args():
         choices=["fedavg", "svrfl"],
         help="Run only specific defenses. 仅运行指定防御。",
     )
+
+    # ---- FL training / 联邦训练参数 ----
+    parser.add_argument(
+        "--num-rounds", type=int, default=None,
+        help="Communication rounds (default: 5 in quick mode, 25 otherwise). 通信轮数。",
+    )
+    parser.add_argument(
+        "--clients-per-round", type=int, default=None,
+        help="Clients sampled per round (default: train_svrfl.py default=10). 每轮采样客户端数。",
+    )
+    parser.add_argument(
+        "--num-clients", type=int, default=None,
+        help="Total FL client pool size (default: train_svrfl.py default=20). 总客户端数。",
+    )
+    parser.add_argument(
+        "--local-epochs", type=int, default=None,
+        help="Local training epochs per round (default: train_svrfl.py default=1). 每轮本地训练轮次。",
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=None,
+        help="Training batch size (default: train_svrfl.py default=64). 训练批次大小。",
+    )
+    parser.add_argument(
+        "--lr", type=float, default=None,
+        help="Local learning rate (default: train_svrfl.py default=0.001). 本地学习率。",
+    )
+
+    # ---- SVRFL hyperparameters / SVRFL超参数 ----
+    parser.add_argument(
+        "--shapley-mc-samples", type=int, default=None,
+        help="Monte Carlo permutations for Shapley (default: 10 quick, 50 full). MC排列采样数。",
+    )
+    parser.add_argument(
+        "--alpha", type=float, default=None,
+        help="EMA smoothing factor for utility scores (default: train_svrfl.py default=0.9). 效用EMA系数。",
+    )
+    parser.add_argument(
+        "--threshold-h", type=float, default=None,
+        help="KMeans free-rider detection threshold (default: train_svrfl.py default=200). 搭便车检测阈值。",
+    )
+    parser.add_argument(
+        "--eta-server", type=float, default=None,
+        help="Server-side aggregation learning rate (default: train_svrfl.py default=1.0). 服务端学习率。",
+    )
+    parser.add_argument(
+        "--val-samples", type=int, default=None,
+        help="Server validation set size (default: train_svrfl.py default=1000). 服务端验证集大小。",
+    )
+
+    # ---- Attack settings / 攻击设置 ----
+    parser.add_argument(
+        "--num-freeriders", type=int, default=None,
+        help="Number of free-rider attackers (default: train_svrfl.py default=3). 搭便车攻击者数量。",
+    )
+    parser.add_argument(
+        "--num-poisoners", type=int, default=None,
+        help="Number of SF poisoners (default: train_svrfl.py default=2). 投毒者数量。",
+    )
+
+    # ---- System / 系统 ----
     parser.add_argument(
         "--device", type=str, default="auto",
         help=(
@@ -113,6 +172,7 @@ def run_single_experiment(
     mc_samples: int,
     device: str,
     seed: int,
+    extra_args: list[str] | None = None,
 ) -> dict:
     """
     Run a single experiment as a subprocess.
@@ -127,6 +187,8 @@ def run_single_experiment(
         "--device", device,
         "--seed", str(seed),
     ]
+    if extra_args:
+        cmd.extend(extra_args)
 
     output_dir = os.path.join(
         PROJECT_ROOT, "results", f"{defense}_{attack}_r{num_rounds}"
@@ -225,21 +287,41 @@ def main():
     # Determine settings / 确定设置
     if args.quick:
         num_rounds = args.num_rounds or 5
-        mc_samples = 10
+        mc_samples = args.shapley_mc_samples or 10
         mode_label = "Quick"
     else:
         num_rounds = args.num_rounds or 25
-        mc_samples = 50
+        mc_samples = args.shapley_mc_samples or 50
         mode_label = "Full"
+
+    # Build optional pass-through args / 构建透传参数列表
+    extra_args: list[str] = []
+    for flag, val in [
+        ("--clients-per-round", args.clients_per_round),
+        ("--num-clients",       args.num_clients),
+        ("--local-epochs",      args.local_epochs),
+        ("--batch-size",        args.batch_size),
+        ("--lr",                args.lr),
+        ("--alpha",             args.alpha),
+        ("--threshold-h",       args.threshold_h),
+        ("--eta-server",        args.eta_server),
+        ("--val-samples",       args.val_samples),
+        ("--num-freeriders",    args.num_freeriders),
+        ("--num-poisoners",     args.num_poisoners),
+    ]:
+        if val is not None:
+            extra_args += [flag, str(val)]
 
     print("=" * 70)
     print(f"  🎭 FedBard — {mode_label} Experiment Suite")
     print("=" * 70)
     print(f"  Experiments to run:  {len(experiments)}")
-    print(f"  Rounds per run:     {num_rounds}")
-    print(f"  Shapley MC samples: {mc_samples}")
-    print(f"  Device:             {args.device}")
-    print(f"  Seed:               {args.seed}")
+    print(f"  Rounds per run:      {num_rounds}")
+    print(f"  Shapley MC samples:  {mc_samples}")
+    print(f"  Device:              {args.device}")
+    print(f"  Seed:                {args.seed}")
+    if extra_args:
+        print(f"  Extra args:          {' '.join(extra_args)}")
     print("=" * 70)
 
     for i, (d, a) in enumerate(experiments, 1):
@@ -262,6 +344,7 @@ def main():
             mc_samples=mc_samples,
             device=args.device,
             seed=args.seed,
+            extra_args=extra_args,
         )
         results.append(r)
 
