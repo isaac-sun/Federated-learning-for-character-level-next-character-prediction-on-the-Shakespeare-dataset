@@ -107,9 +107,9 @@ pip install torch torchvision
 pip install -r requirements.txt
 
 # 4. Run — MPS is selected automatically
-python experiments/train_svrfl.py --defense svrfl --attack dfr
+python experiments/run_all.py
 # Or force MPS explicitly:
-python experiments/train_svrfl.py --device mps --defense svrfl --attack dfr
+python experiments/run_all.py --device mps
 ```
 
 > **Note:** MPS support requires macOS 12.3+. Verify with `python -c "import torch; print(torch.backends.mps.is_available())"`.
@@ -125,7 +125,7 @@ conda create -n fedbard python=3.10 && conda activate fedbard
 pip install torch torchvision
 pip install -r requirements.txt
 
-python experiments/train_svrfl.py --device cpu --defense svrfl --attack dfr
+python experiments/run_all.py --device cpu
 ```
 
 ---
@@ -160,14 +160,10 @@ pip install -r requirements.txt
 
 **Step 4 — Run:**
 ```powershell
-# Auto-detect NVIDIA GPU
-python experiments/train_svrfl.py --defense svrfl --attack dfr
+# Verify CUDA, then launch the full experiment suite
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 
-# Explicitly target GPU 0
-python experiments/train_svrfl.py --device cuda:0 --defense svrfl --attack dfr
-
-# Multi-GPU: target a specific card
-python experiments/train_svrfl.py --device cuda:1 --defense svrfl --attack sf
+python experiments/run_all.py --device cuda
 ```
 
 **Verify CUDA is available:**
@@ -187,7 +183,7 @@ conda create -n fedbard python=3.10 && conda activate fedbard
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 pip install -r requirements.txt
 
-python experiments/train_svrfl.py --defense svrfl --attack dfr
+python experiments/run_all.py
 ```
 
 ---

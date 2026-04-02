@@ -107,9 +107,9 @@ pip install torch torchvision
 pip install -r requirements.txt
 
 # 4. 运行（自动选择 MPS）
-python experiments/train_svrfl.py --defense svrfl --attack dfr
+python experiments/run_all.py
 # 或显式指定 MPS：
-python experiments/train_svrfl.py --device mps --defense svrfl --attack dfr
+python experiments/run_all.py --device mps
 ```
 
 > **注意：** MPS 支持需要 macOS 12.3+。验证方式：`python -c "import torch; print(torch.backends.mps.is_available())"`
@@ -125,7 +125,7 @@ conda create -n fedbard python=3.10 && conda activate fedbard
 pip install torch torchvision
 pip install -r requirements.txt
 
-python experiments/train_svrfl.py --device cpu --defense svrfl --attack dfr
+python experiments/run_all.py --device cpu
 ```
 
 ---
@@ -160,14 +160,10 @@ pip install -r requirements.txt
 
 **第四步 — 运行：**
 ```powershell
-# 自动检测 NVIDIA GPU
-python experiments/train_svrfl.py --defense svrfl --attack dfr
+# 验证 CUDA 后启动全部实验
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 
-# 显式使用 GPU 0
-python experiments/train_svrfl.py --device cuda:0 --defense svrfl --attack dfr
-
-# 多卡环境下指定特定显卡
-python experiments/train_svrfl.py --device cuda:1 --defense svrfl --attack sf
+python experiments/run_all.py --device cuda
 ```
 
 **验证 CUDA 是否可用：**
@@ -187,12 +183,7 @@ conda create -n fedbard python=3.10 && conda activate fedbard
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 pip install -r requirements.txt
 
-python experiments/train_svrfl.py --defense svrfl --attack dfr
-```
-
----
-
-### 设备选择参考
+python experiments/run_all.py
 
 所有入口脚本（`train.py`、`train_svrfl.py`、`run_all.py`）均支持 `--device` 参数。
 
