@@ -401,25 +401,36 @@ def plot_svrfl_metrics(
             plt.show()
         plt.close(fig)
 
-    # ---- Plot 2: Detection precision & FRDR / 检测精度和FRDR ----
+    # ---- Plot 2: Cumulative detection precision & FRDR / 累积检测精度和FRDR ----
     if detection_metrics and detection_metrics.get("round"):
         fig, ax = plt.subplots(figsize=(10, 5))
+
+        rounds_det = detection_metrics["round"]
+
+        # Replace NaN with None so matplotlib renders gaps instead of zero lines
+        # 将NaN替换为None使matplotlib渲染间隙而非零线
+        def _nan_to_none(lst):
+            return [None if (v != v) else v for v in lst]
+
         ax.plot(
-            detection_metrics["round"],
-            detection_metrics["precision"],
-            "g-o", markersize=3, label="Precision",
+            rounds_det,
+            _nan_to_none(detection_metrics["precision"]),
+            "g-o", markersize=4, label="Cumulative Precision",
         )
         ax.plot(
-            detection_metrics["round"],
+            rounds_det,
             detection_metrics["frdr"],
-            "m-s", markersize=3, label="FRDR",
+            "m-s", markersize=4, label="Cumulative FRDR",
         )
         ax.set_xlabel("Round")
         ax.set_ylabel("Score")
-        ax.set_title("Free-Rider Detection Performance")
+        ax.set_title("Free-Rider Detection Performance (Cumulative)")
         ax.set_ylim(-0.05, 1.05)
         ax.legend()
         ax.grid(True, alpha=0.3)
+        ax.xaxis.set_major_locator(
+            __import__("matplotlib.ticker", fromlist=["MaxNLocator"]).MaxNLocator(integer=True)
+        )
         fig.tight_layout()
         path = os.path.join(save_dir, "freerider_detection.png")
         fig.savefig(path, dpi=150)
@@ -427,6 +438,65 @@ def plot_svrfl_metrics(
         if show:
             plt.show()
         plt.close(fig)
+
+        # ---- Optional Plot 2b: Per-round detection events / 每轮检测事件 ----
+        # Only render this supplementary plot when per-round event keys are present.
+        # 仅当存在每轮事件键时渲染此补充图表。
+        if "round_tp" in detection_metrics and "round_fp" in detection_metrics:
+            fig, (ax_bar, ax_cum) = plt.subplots(
+                2, 1, figsize=(10, 7), sharex=True,
+                gridspec_kw={"height_ratios": [2, 1]},
+            )
+
+            x = np.arange(len(rounds_det))
+            bar_w = 0.35
+            ax_bar.bar(
+                x - bar_w / 2, detection_metrics["round_tp"],
+                width=bar_w, color="steelblue", label="TP (this round)",
+            )
+            ax_bar.bar(
+                x + bar_w / 2, detection_metrics["round_fp"],
+                width=bar_w, color="salmon", label="FP (this round)",
+            )
+            ax_bar.set_ylabel("Count")
+            ax_bar.set_title("Per-Round Free-Rider Detection Events")
+            ax_bar.legend(loc="upper right")
+            ax_bar.grid(True, alpha=0.3, axis="y")
+            ax_bar.set_xticks(x)
+            ax_bar.set_xticklabels(rounds_det)
+            # Force y-axis to start at 0; at least 2 ticks visible / 强制y轴从0开始
+            _bar_max = max(
+                max(detection_metrics["round_tp"], default=0),
+                max(detection_metrics["round_fp"], default=0),
+            )
+            ax_bar.set_ylim(bottom=0, top=max(_bar_max + 1, 2))
+            ax_bar.yaxis.set_major_locator(
+                __import__("matplotlib.ticker", fromlist=["MaxNLocator"])
+                .MaxNLocator(integer=True)
+            )
+
+            cum_counts = detection_metrics["cumulative_detected_count"]
+            ax_cum.plot(
+                x, cum_counts,
+                "m-o", markersize=4, label="Cumulative confirmed FRs",
+            )
+            ax_cum.set_xlabel("Round")
+            ax_cum.set_ylabel("Count")
+            ax_cum.legend(loc="upper left")
+            ax_cum.grid(True, alpha=0.3)
+            ax_cum.set_ylim(bottom=0, top=max(max(cum_counts, default=0) + 1, 2))
+            ax_cum.yaxis.set_major_locator(
+                __import__("matplotlib.ticker", fromlist=["MaxNLocator"])
+                .MaxNLocator(integer=True)
+            )
+
+            fig.tight_layout()
+            events_path = os.path.join(save_dir, "freerider_detection_events.png")
+            fig.savefig(events_path, dpi=150)
+            print(f"  Detection events plot saved to {events_path}")
+            if show:
+                plt.show()
+            plt.close(fig)
 
     # ---- Plot 3: Utility score trajectories / 效用分数轨迹 ----
     if round_logs and any("utility_scores" in log for log in round_logs):

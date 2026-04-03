@@ -448,47 +448,110 @@ def run_experiment(
 def compute_freerider_metrics(
     round_logs: List[Dict[str, Any]],
     true_freerider_ids: Set[str],
-) -> Dict[str, List[float]]:
+) -> Dict[str, List]:
     """
-    Compute free-rider detection precision and FRDR across rounds.
-    计算各轮次的搭便车检测精度和FRDR。
+    Compute cumulative free-rider detection metrics across rounds.
+    计算各轮次的累积搭便车检测指标。
 
-    Precision = TP / (TP + FP)
-    FRDR (Free Rider Detection Rate) = TP / (TP + FN)
+    Metrics accumulate across rounds so the FRDR curve is monotonically
+    non-decreasing, correctly reflecting system-level detection progress.
+    Once a free rider is permanently removed from the system it should never
+    need to be detected again, so we track *newly* confirmed detections.
+    指标在各轮次累积，使FRDR曲线单调不减，正确反映系统级检测进度。
+    一旦搭便车者被永久移除，就无需再次检测，因此我们跟踪*新*确认的检测。
+
+    Definitions / 定义:
+        FRDR_t = |cumulative true free riders detected up to round t|
+                 / |total true free riders|
+
+        Precision_t = cumulative_TP / (cumulative_TP + cumulative_FP)
+                      where cumulative_TP counts only *newly* detected true FRs
+                      (a re-detection of an already-confirmed free rider does not
+                      increment TP further, since it no longer appears in the
+                      eligible pool after reputation pruning).
+                      NaN when no detection has occurred yet (denominator = 0).
 
     Args:
         round_logs: List of per-round log dicts. 每轮日志。
-        true_freerider_ids: Ground-truth free-rider IDs. 真实搭便车者ID。
+        true_freerider_ids: Ground-truth set of free-rider client IDs.
+                            真实搭便车者ID集合。
 
     Returns:
-        Dict with "precision" and "frdr" lists, one per round.
+        Dict with per-round lists:
+          "round"                   – round numbers
+          "precision"               – cumulative precision (NaN until first event)
+          "frdr"                    – cumulative FRDR (monotonically non-decreasing)
+          "round_tp"                – per-round true positives
+          "round_fp"                – per-round false positives
+          "round_fn"                – per-round false negatives (undetected true FRs)
+          "newly_detected_count"    – count of true FRs seen for the first time
+          "cumulative_detected_count" – total confirmed true FRs found so far
     """
-    precisions = []
-    frdrs = []
-    rounds = []
+    rounds: List[int] = []
+    precisions: List[float] = []
+    frdrs: List[float] = []
+    round_tps: List[int] = []
+    round_fps: List[int] = []
+    round_fns: List[int] = []
+    newly_detected_counts: List[int] = []
+    cumulative_detected_counts: List[int] = []
+
+    # Persistent cumulative state across rounds / 跨轮次持久累积状态
+    cumulative_detected_true: Set[str] = set()
+    cumulative_tp: int = 0   # newly-confirmed true FRs, accumulated
+    cumulative_fp: int = 0   # false positives, accumulated
+
+    n_true = len(true_freerider_ids)
 
     for log in round_logs:
-        detected = set(log.get("detected_freeriders", []))
-        # Only consider selected clients this round
-        selected = set(log.get("selected_ids", []))
-        true_in_round = true_freerider_ids & selected
+        detected_this_round = set(log.get("detected_freeriders", []))
 
-        if not detected and not true_in_round:
-            # No free riders present or detected → perfect score
-            precisions.append(1.0)
-            frdrs.append(1.0)
-        elif not detected and true_in_round:
-            precisions.append(1.0)  # No false positives
-            frdrs.append(0.0)      # Missed all free riders
-        else:
-            tp = len(detected & true_in_round)
-            fp = len(detected - true_in_round)
-            fn = len(true_in_round - detected)
-            precision = tp / (tp + fp) if (tp + fp) > 0 else 1.0
-            frdr = tp / (tp + fn) if (tp + fn) > 0 else 1.0
-            precisions.append(precision)
-            frdrs.append(frdr)
+        # Per-round event counts (instantaneous view of this round's detector output)
+        # 本轮事件计数（本轮检测器输出的瞬时视图）
+        round_tp = len(detected_this_round & true_freerider_ids)
+        round_fp = len(detected_this_round - true_freerider_ids)
+        round_fn = len(true_freerider_ids - detected_this_round)
+
+        # Newly detected: true FRs confirmed for the FIRST time this round.
+        # Re-detecting an already-confirmed FR does not count as a new TP.
+        # 新检测：本轮首次确认的真实搭便车者。重新检测已确认的FR不算新TP。
+        newly_detected = (
+            (detected_this_round & true_freerider_ids) - cumulative_detected_true
+        )
+        cumulative_detected_true.update(newly_detected)
+
+        # Accumulate TP (newly confirmed) and FP
+        # 累积TP（新确认）和FP
+        cumulative_tp += len(newly_detected)
+        cumulative_fp += round_fp
+
+        # Cumulative FRDR: fraction of all true FRs ever confirmed
+        # 累积FRDR：已确认的所有真实搭便车者的比例
+        frdr = (
+            len(cumulative_detected_true) / n_true if n_true > 0 else float("nan")
+        )
+
+        # Cumulative precision: NaN before any detection event occurs
+        # 累积精度：在任何检测事件发生之前为NaN
+        denom = cumulative_tp + cumulative_fp
+        precision = cumulative_tp / denom if denom > 0 else float("nan")
 
         rounds.append(log["round"])
+        precisions.append(precision)
+        frdrs.append(frdr)
+        round_tps.append(round_tp)
+        round_fps.append(round_fp)
+        round_fns.append(round_fn)
+        newly_detected_counts.append(len(newly_detected))
+        cumulative_detected_counts.append(len(cumulative_detected_true))
 
-    return {"round": rounds, "precision": precisions, "frdr": frdrs}
+    return {
+        "round": rounds,
+        "precision": precisions,
+        "frdr": frdrs,
+        "round_tp": round_tps,
+        "round_fp": round_fps,
+        "round_fn": round_fns,
+        "newly_detected_count": newly_detected_counts,
+        "cumulative_detected_count": cumulative_detected_counts,
+    }

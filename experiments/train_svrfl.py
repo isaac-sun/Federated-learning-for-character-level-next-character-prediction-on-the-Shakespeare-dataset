@@ -506,6 +506,12 @@ def main():
             detection_metrics = compute_freerider_metrics(
                 round_logs, freerider_ids
             )
+            # Persist detection metrics alongside other artifacts
+            # 将检测指标与其他产物一起持久化
+            det_path = os.path.join(output_dir, "detection_metrics.json")
+            with open(det_path, "w") as f:
+                json.dump(detection_metrics, f, indent=2)
+            print(f"💾 Detection metrics saved to {det_path}")
         plot_svrfl_metrics(
             round_logs,
             save_dir=output_dir,
