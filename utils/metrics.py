@@ -379,14 +379,20 @@ def plot_svrfl_metrics(
 
         # Legend proxy / 图例代理
         import matplotlib.lines as mlines
-        b_line = mlines.Line2D([], [], color="blue", alpha=0.5, label="Benign")
-        m_line = mlines.Line2D([], [], color="red", alpha=0.7, label="Malicious")
-        ax.legend(handles=[b_line, m_line])
+        r_handles = [mlines.Line2D([], [], color="blue", alpha=0.5, label="Benign")]
+        if malicious_cids:
+            r_handles.append(
+                mlines.Line2D([], [], color="red", alpha=0.7, label="Malicious")
+            )
+        ax.legend(handles=r_handles)
         ax.set_xlabel("Round")
         ax.set_ylabel("Reputation")
         ax.set_title("Client Reputation Over Rounds")
         ax.axhline(y=0, color="gray", linestyle="--", alpha=0.5)
         ax.grid(True, alpha=0.3)
+        ax.xaxis.set_major_locator(
+            __import__("matplotlib.ticker", fromlist=["MaxNLocator"]).MaxNLocator(integer=True)
+        )
         fig.tight_layout()
         path = os.path.join(save_dir, "reputation_trajectories.png")
         fig.savefig(path, dpi=150)
@@ -440,33 +446,39 @@ def plot_svrfl_metrics(
 
         for cid in benign_u:
             vals = [
-                log.get("utility_scores", {}).get(cid, 0.0)
+                log.get("utility_scores", {}).get(cid, float("nan"))
                 for log in round_logs
                 if "utility_scores" in log
             ]
-            if vals:
+            if any(v == v for v in vals):  # at least one non-NaN
                 ax.plot(rounds_with_u[:len(vals)], vals, "b-",
                         alpha=0.3, linewidth=0.8)
 
         for cid in malicious_u:
             vals = [
-                log.get("utility_scores", {}).get(cid, 0.0)
+                log.get("utility_scores", {}).get(cid, float("nan"))
                 for log in round_logs
                 if "utility_scores" in log
             ]
-            if vals:
+            if any(v == v for v in vals):
                 ax.plot(rounds_with_u[:len(vals)], vals, "r-",
                         alpha=0.6, linewidth=1.2)
 
         import matplotlib.lines as mlines
-        b_line = mlines.Line2D([], [], color="blue", alpha=0.5, label="Benign")
-        m_line = mlines.Line2D([], [], color="red", alpha=0.7, label="Malicious")
-        ax.legend(handles=[b_line, m_line])
+        handles = [mlines.Line2D([], [], color="blue", alpha=0.5, label="Benign")]
+        if malicious_u:  # only add malicious legend when there are malicious clients
+            handles.append(
+                mlines.Line2D([], [], color="red", alpha=0.7, label="Malicious")
+            )
+        ax.legend(handles=handles)
         ax.set_xlabel("Round")
         ax.set_ylabel("Utility Score")
         ax.set_title("Client Utility Scores Over Rounds")
         ax.axhline(y=0, color="gray", linestyle="--", alpha=0.5)
         ax.grid(True, alpha=0.3)
+        ax.xaxis.set_major_locator(
+            __import__("matplotlib.ticker", fromlist=["MaxNLocator"]).MaxNLocator(integer=True)
+        )
         fig.tight_layout()
         path = os.path.join(save_dir, "utility_trajectories.png")
         fig.savefig(path, dpi=150)

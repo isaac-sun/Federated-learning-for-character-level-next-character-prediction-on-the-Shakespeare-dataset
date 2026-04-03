@@ -337,8 +337,12 @@ def run_experiment(
 
             # C. Update utility scores / 更新效用分数
             utility_scores = update_utility_scores(utility_scores, sv, alpha)
+            # Log the FULL persistent utility state for all clients, not just
+            # selected ones. Utility persists across rounds, so every client
+            # always has a valid current value.
+            # 记录所有客户端的完整持久效用状态，而非仅记录本轮选中的客户端。
             round_log["utility_scores"] = {
-                cid: float(utility_scores.get(cid, 0.0)) for cid in selected_ids
+                cid: float(utility_scores[cid]) for cid in client_ids
             }
 
             # D. Binary positive-utility aggregation
